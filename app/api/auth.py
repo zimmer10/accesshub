@@ -9,33 +9,21 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
     verify_password,
 )
 from app.models import User
 from app.schemas.token import RefreshRequest, Token
 from app.schemas.user import UserCreate, UserRead
+from app.services.users import create_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> User:
-    existing = await db.scalar(
-        select(User).where((User.username == payload.username) | (User.email == payload.email))
+    return await create_user(
+        db, username=payload.username, email=payload.email, password=payload.password
     )
-    if existing is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "username or email is already registered")
-
-    user = User(
-        username=payload.username,
-        email=payload.email,
-        hashed_password=hash_password(payload.password),
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
 
 
 @router.post("/login", response_model=Token)

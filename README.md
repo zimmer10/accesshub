@@ -22,11 +22,17 @@ docker compose up --build
 
 ## Тесты
 
+Integration-тесты бьют по настоящему Postgres (отдельная БД `accesshub_test`,
+создаётся автоматически), поэтому перед запуском нужна поднятая `db`:
+
 ```bash
 uv venv --python 3.12 .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-pytest
+docker compose up -d db
+pytest --cov=app --cov-report=term-missing
 ```
+
+Либо `make test` — гоняет тесты в одноразовом контейнере, подключённом к сети compose.
 
 ## Статус проекта
 
@@ -38,6 +44,9 @@ pytest
   `parent_group_id`), Alembic-миграции, seed-скрипт
 - аутентификация: `POST /auth/register`, `/auth/login`, `/auth/refresh`
   (JWT access/refresh, bcrypt)
+- CRUD API: `/users`, `/groups` (+ members), `/roles` (+ permissions), `/permissions`,
+  все под JWT-авторизацией (`get_current_user`); unit + integration тесты (httpx +
+  реальный Postgres), покрытие ~92%
 
-Дальше по плану: CRUD API (users/groups/roles/permissions), резолвер эффективных прав
-(обход иерархии групп + кэш в Redis), audit log, веб-панель на Jinja2 + htmx.
+Дальше по плану: резолвер эффективных прав (обход иерархии групп + кэш в Redis),
+`/access/check`, audit log, веб-панель на Jinja2 + htmx.
