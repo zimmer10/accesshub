@@ -95,3 +95,47 @@ async def test_delete_user(client: AsyncClient, auth_headers: dict[str, str]) ->
 
     response = await client.get(f"/users/{user_id}", headers=auth_headers)
     assert response.status_code == 404
+
+
+async def test_assign_and_revoke_role(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    user = await client.post(
+        "/users",
+        json={"username": "ivan1", "email": "ivan1@example.com", "password": "password123"},
+        headers=auth_headers,
+    )
+    user_id = user.json()["id"]
+    role = await client.post("/roles", json={"name": "role-for-user"}, headers=auth_headers)
+    role_id = role.json()["id"]
+
+    add = await client.post(
+        f"/users/{user_id}/roles", json={"role_id": role_id}, headers=auth_headers
+    )
+    assert add.status_code == 204
+
+    duplicate = await client.post(
+        f"/users/{user_id}/roles", json={"role_id": role_id}, headers=auth_headers
+    )
+    assert duplicate.status_code == 409
+
+    remove = await client.delete(f"/users/{user_id}/roles/{role_id}", headers=auth_headers)
+    assert remove.status_code == 204
+
+    remove_again = await client.delete(f"/users/{user_id}/roles/{role_id}", headers=auth_headers)
+    assert remove_again.status_code == 404
+
+
+async def test_assign_role_missing_role_404(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    user = await client.post(
+        "/users",
+        json={"username": "judy1", "email": "judy1@example.com", "password": "password123"},
+        headers=auth_headers,
+    )
+    user_id = user.json()["id"]
+
+    response = await client.post(
+        f"/users/{user_id}/roles", json={"role_id": 999999}, headers=auth_headers
+    )
+
+    assert response.status_code == 404

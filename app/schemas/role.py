@@ -24,3 +24,7 @@ class RoleRead(BaseModel):
 
 class RolePermissionAdd(BaseModel):
     permission_id: int
+
+
+class RoleAssign(BaseModel):
+    role_id: int

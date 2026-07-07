@@ -44,9 +44,13 @@ pytest --cov=app --cov-report=term-missing
   `parent_group_id`), Alembic-миграции, seed-скрипт
 - аутентификация: `POST /auth/register`, `/auth/login`, `/auth/refresh`
   (JWT access/refresh, bcrypt)
-- CRUD API: `/users`, `/groups` (+ members), `/roles` (+ permissions), `/permissions`,
-  все под JWT-авторизацией (`get_current_user`); unit + integration тесты (httpx +
-  реальный Postgres), покрытие ~92%
+- CRUD API: `/users`, `/groups` (+ members, + roles), `/roles` (+ permissions), `/permissions`,
+  все под JWT-авторизацией (`get_current_user`)
+- резолвер эффективных прав: обход иерархии групп вверх (BFS, устойчив к циклам),
+  прямые + групповые роли, wildcard-права (`invoice:*`); `GET /access/check`,
+  `GET /users/{id}/effective-permissions`
+- защита от циклов в иерархии групп при смене родителя (`SELECT ... FOR UPDATE`
+  на время проверки+записи — закрывает race condition при параллельных запросах)
+- unit + integration тесты (httpx + реальный Postgres), покрытие ~93%
 
-Дальше по плану: резолвер эффективных прав (обход иерархии групп + кэш в Redis),
-`/access/check`, audit log, веб-панель на Jinja2 + htmx.
+Дальше по плану: кэш резолва в Redis + инвалидация, audit log, веб-панель на Jinja2 + htmx.
