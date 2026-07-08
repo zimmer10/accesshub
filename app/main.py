@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.access import router as access_router
+from app.api.audit_log import router as audit_log_router
 from app.api.auth import router as auth_router
 from app.api.groups import router as groups_router
 from app.api.permissions import router as permissions_router
@@ -16,6 +17,7 @@ app.include_router(groups_router)
 app.include_router(roles_router)
 app.include_router(permissions_router)
 app.include_router(access_router)
+app.include_router(audit_log_router)
 
 
 @app.get("/")

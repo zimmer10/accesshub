@@ -3,9 +3,11 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 import asyncpg
 import pytest_asyncio
+import redis.asyncio as redis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.cache import get_redis
 from app.core.db import get_db
 from app.core.security import create_access_token, hash_password
 from app.main import app
@@ -21,7 +23,12 @@ TEST_DATABASE_URL = os.environ.get(
 )
 TEST_DB_NAME = TEST_DATABASE_URL.rsplit("/", 1)[-1]
 
+# Отдельный номер логической БД в Redis (по умолчанию 1, а не 0) — чтобы не
+# пересекаться с тем, что могло бы там лежать из обычного docker-compose up.
+TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL", "redis://localhost:6379/1")
+
 engine = create_async_engine(TEST_DATABASE_URL)
+redis_pool = redis.ConnectionPool.from_url(TEST_REDIS_URL, decode_responses=True)
 
 
 async def _ensure_test_database_exists() -> None:
@@ -59,11 +66,25 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+async def redis_client() -> AsyncIterator[redis.Redis]:
+    client = redis.Redis(connection_pool=redis_pool)
+    await client.flushdb()  # чистое состояние на каждый тест, независимо от прошлых
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+@pytest_asyncio.fixture
+async def client(db_session: AsyncSession, redis_client: redis.Redis) -> AsyncIterator[AsyncClient]:
     async def override_get_db() -> AsyncIterator[AsyncSession]:
         yield db_session
 
+    async def override_get_redis() -> AsyncIterator[redis.Redis]:
+        yield redis_client
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis] = override_get_redis
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

@@ -23,12 +23,13 @@ docker compose up --build
 ## Тесты
 
 Integration-тесты бьют по настоящему Postgres (отдельная БД `accesshub_test`,
-создаётся автоматически), поэтому перед запуском нужна поднятая `db`:
+создаётся автоматически) и Redis (отдельная логическая БД `1`), поэтому перед
+запуском нужны поднятые `db` и `redis`:
 
 ```bash
 uv venv --python 3.12 .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-docker compose up -d db
+docker compose up -d db redis
 pytest --cov=app --cov-report=term-missing
 ```
 
@@ -51,6 +52,11 @@ pytest --cov=app --cov-report=term-missing
   `GET /users/{id}/effective-permissions`
 - защита от циклов в иерархии групп при смене родителя (`SELECT ... FOR UPDATE`
   на время проверки+записи — закрывает race condition при параллельных запросах)
-- unit + integration тесты (httpx + реальный Postgres), покрытие ~93%
+- кэш `/access/check` в Redis (`perm:{user_id}:{permission}`, TTL 60с) с точечной
+  инвалидацией по `user_cache_keys:{user_id}` при любом изменении, которое может
+  повлиять на права пользователя (роли, членство, права роли, переподчинение группы)
+- audit log: запись на каждое мутирующее действие (actor/action/target/before/after,
+  без пароля в снапшотах), `GET /audit-log?user_id=&date_from=&date_to=`
+- unit + integration тесты (httpx + реальный Postgres + Redis)
 
-Дальше по плану: кэш резолва в Redis + инвалидация, audit log, веб-панель на Jinja2 + htmx.
+Дальше по плану: веб-панель на Jinja2 + htmx.

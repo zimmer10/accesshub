@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "AccessHub"
     debug: bool = False
     database_url: str = "postgresql+asyncpg://accesshub:accesshub@db:5432/accesshub"
+    redis_url: str = "redis://redis:6379/0"
 
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"

@@ -15,6 +15,8 @@ async def create_user(db: AsyncSession, *, username: str, email: str, password: 
 
     user = User(username=username, email=email, hashed_password=hash_password(password))
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    # flush (без commit) уже назначает id и created_at через RETURNING — коммит
+    # делает вызывающий код, чтобы иметь возможность сохранить в той же
+    # транзакции ещё и запись audit log
+    await db.flush()
     return user
